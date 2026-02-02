@@ -4,43 +4,57 @@
 [![Language](https://img.shields.io/badge/Language-MQL4-orange.svg)](https://docs.mql4.com/)
 
 ## Overview
-A robust Expert Advisor (EA) designed for advanced grid and pyramid trading management on the MetaTrader 4 platform. This tool automates complex position-sizing strategies, synchronizes stop-losses across multiple orders, and manages basket-wide exit strategies based on real-time monetary profit/loss targets.
+A professional trade management tool for Grid and Pyramid strategies. The EA automates risk management and execution, allowing traders to focus on market direction while the bot handles position scaling and basket protection. It features intelligent market detection and sophisticated exit logic.
 
 ## Key Features
-* **Dynamic Grid Execution**: Rapid deployment of Buy/Sell Stop grids with customizable step distances and lot-sizing logic.
-* **Money SL/TP Mode**: Global basket management based on total net profit/loss (USD), bypassing individual order limitations.
-* **Pyramid Net Zero**: Portfolio protection logic that closes all positions in a pyramid if the cumulative profit reverts to breakeven.
-* **High-Frequency Optimization**: Integrated throttling logic (2-second execution timer) and price-change thresholds to ensure broker compliance and prevent server spamming.
-* **Interactive GUI**: Real-time profit tracking and manual control panel for on-the-fly grid adjustments and emergency "Panic" closures.
-* **Cross-Asset Compatibility**: Precision math using `MODE_TICKVALUE` and `MODE_TICKSIZE` for universal price distance calculations (Forex, Gold, Crypto).
+* **Adaptive Grid Engine**: Automatically detects asset types (BTC, Gold, Silver, Forex) and suggests optimal grid steps based on market volatility.
+* **Each Position Net Zero**: Individual position protection that closes any profitable trade if it reverts to "break-even" after hitting the `ActivationPips` threshold.
+* **Pyramid Net Zero**: A "hard kill" switch for the entire basket. If total net profit drops to zero or less, all positions are closed immediately to protect account equity.
+* **Money SL (Smart Target)**: Global basket management based on a specific USD amount (e.g., -$10 limit or +$50 target).
+* **Anti-Spam Execution**: Throttles server requests (max 1 modify per 2 seconds) and filters market noise to ensure broker compliance.
+* **Emergency Controls**: One-click "Panic Button" (CLOSE ALL) for immediate market exit and pending order deletion.
 
-## Technical Specifications
-* **Anti-Spam Filter**: `OrderModify` requests are throttled (max once every 2 seconds).
-* **Slippage Protection**: Includes `StopLevel` check to prevent errors when price is within the server's freeze zone.
-* **Order Isolation**: Uses `MagicNumber` for independent management of specific strategy instances.
+## Grid Setup & Range
+The EA employs a dynamic scaling system to handle different market environments:
+* **Forex (5/3 Digits)**: Steps are calculated in standard pips (1 pip = 10 points).
+* **Crypto/Indices/Metals**: Steps are treated as raw price units (e.g., a 100.0 step on BTC moves the entry by exactly $100).
+* **Market Autodetect**: Default suggestions include BTC (100.0), XAU (10.0), XAG (50.0), and Forex (10.0 pips).
 
 ## Input Parameters
 | Parameter | Description |
 | :--- | :--- |
-| **MagicNumber** | Unique ID for the EA. Set to 0 to manage all manual trades. |
-| **ActivationPips** | Minimum profit in pips required for "Each Zero" closure logic. |
+| **ActivationPips** | Profit threshold in pips required to activate "Each Position Net Zero" logic. |
+
+## Usage Instructions
+### 1. Deploying a Grid
+Click **SET GRID** to reveal the configuration panel:
+* **Mode**: Toggle between `BUY STOP` and `SELL STOP`.
+* **Lot Size**: Define volume for individual orders.
+* **Step**: Set distance between orders (auto-adjusted per asset).
+* **Count**: Define quantity of pending orders (max 50).
+* **START GRID**: Executes the sequence on the server.
+
+### 2. Money SL Mode
+Enter a USD value in the input field:
+* **Negative (e.g., -20.00)**: Global basket Stop Loss.
+* **Positive (e.g., 100.00)**: Global basket Take Profit.
+* Click **Money SL Mode** to synchronize SL levels for all positions.
+
+### 3. Emergency Controls
+* **REMOVE ALL SL**: Wipes Stop Loss from all open positions and deactivates management modes.
+* **CLOSE ALL**: Immediately closes all market positions and deletes pending orders for the current symbol.
+
+## Installation
+1. Open MetaTrader 4 and go to `File -> Open Data Folder`.
+2. Navigate to `MQL4/Experts/`.
+3. Place `PyramidManager.mq4` in the folder.
+4. Refresh the **Navigator** in MT4 and attach the EA to a chart.
+5. Ensure **"Allow DLL imports"** and **"Allow live trading"** are checked in the EA settings.
 
 ## Future Plans
-* Implement trailing stop-loss for the entire basket.
-* Add Telegram API integration for real-time profit notifications.
-* Porting core logic to MQL5 for MetaTrader 5 compatibility.
-
-## Requirements
-* **MetaTrader 4 Terminal**
-* **MQL4 Compiler** (included in MetaEditor)
-* **Demo Account** for initial strategy validation
-
-## Getting Started
-1. **Open MT4 Data Folder**: Go to `File -> Open Data Folder`.
-2. **Deploy EA**: Navigate to `MQL4/Experts/` and copy the `PyramidManager.mq4` file.
-3. **Refresh Terminal**: Restart MT4 or right-click *Experts* in the Navigator and select *Refresh*.
-4. **Attach to Chart**: Drag the EA onto a chart (H1 or M1 recommended).
-5. **Configure**: Enable "Allow DLL imports" and "Allow live trading" in the EA properties.
+* Integration of Trailing Stop-Loss for the entire USD basket.
+* Multi-symbol dashboard for managing different grids from one chart.
+* Performance analytics export to CSV for strategy backtesting.
 
 ## Disclaimer
-Trading involves significant risk. This software is provided "as-is" without any warranties. Always test on a Demo Account before using it on a Live account. The author is not responsible for any financial losses.
+This software is for educational and utility purposes only. Trading involves significant risk. Always test your settings on a **Demo Account** before moving to Live trading. The author is not responsible for any financial losses.
