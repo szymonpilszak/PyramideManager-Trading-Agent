@@ -7,6 +7,7 @@
 
 [![Platform](https://img.shields.io/badge/Platform-MetaTrader%204-blue.svg)](https://www.metatrader4.com/)
 [![Language](https://img.shields.io/badge/Language-MQL4-orange.svg)](https://docs.mql4.com/)
+[![Tools](https://img.shields.io/badge/Tools-PowerShell%20%7C%20Batch-blueviolet.svg)](#log-analysis-suite)
 
 ## Overview
 A professional trade management tool for Grid and Pyramid strategies. The EA automates risk management and execution, allowing traders to focus on market direction while the bot handles position scaling and basket protection. It features intelligent market detection and sophisticated exit logic.
@@ -24,6 +25,12 @@ The EA employs a dynamic scaling system to handle different market environments:
 * **Forex (5/3 Digits)**: Steps are calculated in standard pips (1 pip = 10 points).
 * **Crypto/Indices/Metals**: Steps are treated as raw price units (e.g., a 100.0 step on BTC moves the entry by exactly $100).
 * **Market Autodetect**: Default suggestions include BTC (100.0), XAU (10.0), XAG (50.0), and Forex (10.0 pips).
+
+## Log Analysis Suite (Optional)
+A lightweight monitoring toolset to audit EA activity:
+* **Anti-Spam Check**: PowerShell script analyzing logs to count server requests (`modified`, `opened`, `pending` events) to ensure broker anti-spam compliance.
+* **One-Click Execution**: Batch wrapper for instant log analysis via double-click, bypassing default PowerShell restrictions.
+* **Configuration**: Update the directory paths within both the `.bat` and `.ps1` files to match your local MetaTrader log structure before use.
 
 ## Usage Instructions
 ### 1. Deploying a Grid
