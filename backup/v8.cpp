@@ -19,7 +19,6 @@ int  Global_Grid_Direction = 0; // 0-BuyStop, 1-SellStop
 double Global_InitialProfit = 0; // Tu bot zapamięta zysk z chwili kliknięcia
 double Global_InitialProfit_NetZero = 0; // Dla Pyramid Net Zero (TEGO BRAKOWAŁO)
 
-
 //+------------------------------------------------------------------+
 //| Inicjalizacja                                                    |
 //+------------------------------------------------------------------+
@@ -90,12 +89,7 @@ void OnTick() {
           DeleteAllPending(); ResetAllModes(); BasketStarted = false; return;
       }
       if(activeMarketPositions > 0) {
-         // Próbuj odświeżyć SL nie częściej niż raz na 2000 ms (2 sekundy)
-      static uint lastMilliTime = 0;
-      if(GetTickCount() - lastMilliTime > 2000) { 
-         RefreshGlobalSL(); 
-         lastMilliTime = GetTickCount(); 
-      }
+         if(TimeCurrent() > lastModificationTime) { RefreshGlobalSL(); lastModificationTime = TimeCurrent(); }
          Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
 
          bool triggerSL = false;
@@ -127,16 +121,15 @@ void OnTick() {
 void RefreshGlobalSL() {
    if(!Global_MoneySL_Active) return;
 
-   // 1. Pobieranie parametrów rynkowych i GUI
    double targetMoney = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
    double totalLots = 0, weightedOpenPrice = 0;
    int type = -1, count = 0;
 
-   // 2. Skanowanie koszyka pozycji
+   // 1. Skanowanie pozycji
    for(int i = OrdersTotal() - 1; i >= 0; i--) {
       if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
          if(OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
-            if(OrderType() <= 1) { // Tylko OP_BUY (0) i OP_SELL (1)
+            if(OrderType() <= 1) {
                totalLots += OrderLots();
                weightedOpenPrice += OrderOpenPrice() * OrderLots();
                type = OrderType();
@@ -146,42 +139,41 @@ void RefreshGlobalSL() {
       }
    }
 
-   if(count == 0 || totalLots <= 0) return;
+   if(count == 0 || totalLots == 0) return;
    
    double avgOpenPrice = weightedOpenPrice / totalLots;
-   
-   // --- MATEMATYKA UNIWERSALNA (Zastępuje contractSize) ---
    double tickVal = MarketInfo(_Symbol, MODE_TICKVALUE);
    double tickSz  = MarketInfo(_Symbol, MODE_TICKSIZE);
+   double stopLevel = MarketInfo(_Symbol, MODE_STOPLEVEL) * Point; // Minimalny dystans od ceny
    
    if(tickVal <= 0 || tickSz <= 0) return;
+   
+   double contractSize = MarketInfo(_Symbol, MODE_LOTSIZE); 
+   if(contractSize <= 0) contractSize = 3.0; // Twoja specyfikacja BTC
 
-   // Obliczanie dystansu ceny w oparciu o TickValue (najdokładniejsza metoda)
-   // Dystans = (Kasa / (Loty * Wartość_Punktu)) * Rozmiar_Punktu
-   double priceDistance = (targetMoney / (totalLots * tickVal)) * tickSz;
+   // Dystans ceny = Kasa / (Loty * 3)
+   double priceDistance = targetMoney / (totalLots * contractSize);
    
    double slPrice = (type == OP_BUY) ? avgOpenPrice + priceDistance : avgOpenPrice - priceDistance;
    slPrice = NormalizeDouble(slPrice, Digits);
 
-   // 3. Weryfikacja StopLevel (RefreshRates() jest krytyczne przed sprawdzeniem Bid/Ask)
-   RefreshRates();
-   double stopLevel = MarketInfo(_Symbol, MODE_STOPLEVEL) * Point;
-   double currentPrice = (type == OP_BUY) ? Bid : Ask;
-   
-   bool distanceOk = (type == OP_BUY) ? (currentPrice - slPrice > stopLevel) : (slPrice - currentPrice > stopLevel);
-   if(!distanceOk) return; 
+   // 2. Sprawdzenie bezpiecznego dystansu (StopLevel)
+   bool canModify = false;
+   if(type == OP_BUY) {
+      if(Bid - slPrice > stopLevel) canModify = true; 
+   } else {
+      if(slPrice - Ask > stopLevel) canModify = true;
+   }
 
-   // 4. Wykonanie modyfikacji z bramką anty-spam (10 * Point)
+   if(!canModify) return; // Jeśli cena jest za blisko planowanego SL/TP, nie rób nic (czekaj na ruch)
+
+   // 3. Wykonanie modyfikacji
    for(int i = OrdersTotal() - 1; i >= 0; i--) {
       if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
          if(OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
-            
-            double currentSL = OrderStopLoss();
-            // Modyfikacja następuje tylko, gdy różnica jest istotna (redukcja logów)
-            if(MathAbs(currentSL - slPrice) > 10 * Point) {
-               if(!OrderModify(OrderTicket(), OrderOpenPrice(), slPrice, OrderTakeProfit(), 0, clrOrange)) {
-                  // Opcjonalne: Print("Błąd modyfikacji: ", GetLastError());
-               }
+            // Modyfikuj tylko jeśli różnica jest większa niż 1 punkt (oszczędność łącza)
+            if(MathAbs(OrderStopLoss() - slPrice) > Point) {
+               OrderModify(OrderTicket(), OrderOpenPrice(), slPrice, OrderTakeProfit(), 0, clrOrange);
             }
          }
       }
@@ -533,3 +525,4 @@ void HideGridSubPanel() {
    
    ChartRedraw();
 }
+
