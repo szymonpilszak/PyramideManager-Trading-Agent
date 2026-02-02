@@ -20,11 +20,6 @@ The EA employs a dynamic scaling system to handle different market environments:
 * **Crypto/Indices/Metals**: Steps are treated as raw price units (e.g., a 100.0 step on BTC moves the entry by exactly $100).
 * **Market Autodetect**: Default suggestions include BTC (100.0), XAU (10.0), XAG (50.0), and Forex (10.0 pips).
 
-## Input Parameters
-| Parameter | Description |
-| :--- | :--- |
-| **ActivationPips** | Profit threshold in pips required to activate "Each Position Net Zero" logic. |
-
 ## Usage Instructions
 ### 1. Deploying a Grid
 Click **SET GRID** to reveal the configuration panel:
