@@ -94,6 +94,9 @@ void OnTick() {
       ResetAllModes();
    }
    
+   if(activeMarketPositions == 0 && (Global_MoneySL_Active || Global_CloseNetZero || Global_CloseEachZero)) {
+       DeleteAllPending();
+   }
 }
 
 //+------------------------------------------------------------------+

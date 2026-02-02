@@ -67,31 +67,65 @@ void OnTick() {
          }
       }
    }
+   // --- WYŚWIETLANIE ZYSKU LIVE ---
+double equity = AccountEquity();
+double profitPercent = (equity > 0) ? (totalNetProfit / equity) * 100.0 : 0;
+
+string profitText = "Net: " + DoubleToString(totalNetProfit, 2) + " USD (" + DoubleToString(profitPercent, 2) + "%)";
+color profitColor = (totalNetProfit >= 0) ? clrLime : clrRed;
+
+// Aktualizacja etykiety na wykresie
+if(ObjectFind(0, "LBL_LIVE_PROFIT") < 0) {
+    ObjectCreate(0, "LBL_LIVE_PROFIT", OBJ_LABEL, 0, 0, 0);
+    ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+    ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_XDISTANCE, 180);
+    ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_YDISTANCE, 10); // Nad pierwszym przyciskiem
+    ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_FONTSIZE, 10);
+}
+ObjectSetString(0, "LBL_LIVE_PROFIT", OBJPROP_TEXT, profitText);
+ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_COLOR, profitColor);
 
    // --- 2. LOGIKA MONEY STOP LOSS ---
-   if(Global_MoneySL_Active && activeMarketPositions > 0) {
-      if(TimeCurrent() > lastModificationTime) {
-          RefreshGlobalSL();
-          lastModificationTime = TimeCurrent();
-      }
+// --- 2. LOGIKA MONEY STOP LOSS ---
+   static bool BasketStarted = false; // Zmienna pamiętająca, czy koszyk był otwarty
 
-      Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
+   if(Global_MoneySL_Active) {
+      // Jeśli mamy otwarte pozycje, aktywujemy flagę
+      if(activeMarketPositions > 0) BasketStarted = true;
 
-      if(totalNetProfit <= Global_MoneySL_Value) {
-          Print("Money Stop Loss osiągnięty! Zamykanie.");
-          CloseAll();
+      // Jeśli pozycje zniknęły, a flaga była aktywna (uderzyło w SL/TP/zamknięte z palca)
+      if(activeMarketPositions == 0 && BasketStarted == true) {
+          Print("Pozycje zamknięte - czyszczenie siatki.");
           DeleteAllPending();
           ResetAllModes();
+          BasketStarted = false; // Resetujemy flagę na przyszłość
+          return;
       }
-   }
 
-   if(pendingToClear) DeleteAllPending();
+      if(activeMarketPositions > 0) {
+         if(TimeCurrent() > lastModificationTime) {
+             RefreshGlobalSL();
+             lastModificationTime = TimeCurrent();
+         }
 
-   // --- 3. PIRAMIDA NET ZERO ---
-   if(Global_CloseNetZero && activeMarketPositions >= 2 && totalNetProfit <= 0) {
-      CloseAll(); 
-      DeleteAllPending();
-      ResetAllModes();
+         Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
+
+         // POPRAWIONA LOGIKA PORÓWNANIA (+ i -)
+         bool triggerClose = false;
+         if(Global_MoneySL_Value < 0 && totalNetProfit <= Global_MoneySL_Value) triggerClose = true;
+         else if(Global_MoneySL_Value > 0 && totalNetProfit >= Global_MoneySL_Value) triggerClose = true;
+
+         if(triggerClose) {
+             Print("Money Stop Loss/Target osiągnięty! Zamykanie.");
+             CloseAll();
+             DeleteAllPending();
+             ResetAllModes();
+             BasketStarted = false;
+             return;
+         }
+      }
+   } else {
+      BasketStarted = false; // Jeśli wyłączysz tryb ręcznie, resetujemy flagę
    }
    
 }
@@ -330,14 +364,23 @@ void CreateGridSubPanel() {
 
    // --- LOGIKA AUTOMATYCZNEGO DOBORU WARTOŚCI ---
    string sym = _Symbol;
-   string defaultStep = "25.0"; // Domyślnie dla Indeksów (DAX/Nasdaq)
+   string defaultStep = "25.0"; // Wartość rezerwowa (np. dla indeksów)
    
+   // 1. Warunek dla Bitcoina
    if(StringFind(sym, "BTC") >= 0) 
-      defaultStep = "500.0";    // Dla Bitcoina krok 500$
+      defaultStep = "100.0"; 
+   
+   // 2. Warunek dla Złota (XAUUSD, GOLD, itp.)
    else if(StringFind(sym, "XAU") >= 0 || StringFind(sym, "GOLD") >= 0) 
-      defaultStep = "5.0";      // Dla Złota krok 5$
+      defaultStep = "10.0"; 
+      
+   // 3. Warunek dla Srebra (XAGUSD, SILVER, itp.)
+   else if(StringFind(sym, "XAG") >= 0 || StringFind(sym, "SILVER") >= 0) 
+      defaultStep = "50.0"; 
+      
+   // 4. Warunek dla Walut (Forex) - domyślnie 10 pipsów
    else if(Digits == 3 || Digits == 5) 
-      defaultStep = "10.0";     // Dla Walut (Forex) 10 pipsów
+      defaultStep = "10.0";
 
    // 1. Wybór kierunku (BUY STOP / SELL STOP)
    CreateButton("BTN_GRID_TYPE", xStart, 30, (Global_Grid_Direction==0?"MODE: BUY STOP":"MODE: SELL STOP"), true);
@@ -387,7 +430,7 @@ void CreateGridSubPanel() {
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YDISTANCE, 130);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_XSIZE, 80);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YSIZE, 25);
-   ObjectSetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT, "3");
+   ObjectSetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT, "5");
 
    // 5. Przycisk START
    CreateButton("BTN_GRID_EXEC", xStart, 170, "START GRID", false);
