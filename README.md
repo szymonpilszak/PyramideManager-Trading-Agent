@@ -1,5 +1,10 @@
 # Pyramid Manager EA for MetaTrader 4
 
+## Interface Preview
+| Main Control Panel | Grid Deployment Setup |
+| :---: | :---: |
+| ![Main GUI](assets/gui_main.png) | ![Grid GUI](assets/gui_grid.png) |
+
 [![Platform](https://img.shields.io/badge/Platform-MetaTrader%204-blue.svg)](https://www.metatrader4.com/)
 [![Language](https://img.shields.io/badge/Language-MQL4-orange.svg)](https://docs.mql4.com/)
 
