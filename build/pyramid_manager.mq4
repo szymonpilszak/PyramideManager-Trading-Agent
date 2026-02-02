@@ -82,31 +82,47 @@ void OnTick() {
    ObjectSetString(0, "LBL_LIVE_PROFIT", OBJPROP_TEXT, profitText);
    ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_COLOR, (totalNetProfit >= 0 ? clrLime : clrRed));
 
-   // --- 2. LOGIKA MONEY STOP LOSS (Target/Trailing) ---
-   static bool BasketStarted = false; 
-   if(Global_MoneySL_Active) {
-      if(activeMarketPositions > 0) BasketStarted = true;
-      if(activeMarketPositions == 0 && BasketStarted) {
-          DeleteAllPending(); ResetAllModes(); BasketStarted = false; return;
-      }
-      if(activeMarketPositions > 0) {
-         // Próbuj odświeżyć SL nie częściej niż raz na 2000 ms (2 sekundy)
+  // --- 2. LOGIKA MONEY STOP LOSS (Zaktualizowana) ---
+static bool BasketStarted = false; 
+if(Global_MoneySL_Active) {
+   if(activeMarketPositions > 0) BasketStarted = true;
+   if(activeMarketPositions == 0 && BasketStarted) {
+       DeleteAllPending(); ResetAllModes(); BasketStarted = false; return;
+   }
+   
+   if(activeMarketPositions > 0) {
+      // Optymalizacja komunikatów do serwera (co 2 sekundy)
       static uint lastMilliTime = 0;
       if(GetTickCount() - lastMilliTime > 2000) { 
-         RefreshGlobalSL(); 
-         lastMilliTime = GetTickCount(); 
+          RefreshGlobalSL(); 
+          lastMilliTime = GetTickCount(); 
       }
-         Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
 
-         bool triggerSL = false;
-         if(Global_MoneySL_Value < 0 && totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
-         else if(Global_MoneySL_Value > 0) {
-            if(Global_InitialProfit < Global_MoneySL_Value && totalNetProfit >= Global_MoneySL_Value) triggerSL = true;
-            else if(Global_InitialProfit > Global_MoneySL_Value && totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
+      Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
+      bool triggerSL = false;
+
+      if(Global_MoneySL_Value < 0) {
+         // Tryb Stop Loss (Strata)
+         if(totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
+      } 
+      else if(Global_MoneySL_Value > 0) {
+         // INTELIGENTNA LOGIKA: Cel (Target) vs Obrona (Trailing)
+         if(Global_InitialProfit < Global_MoneySL_Value) {
+            // Czekamy aż zysk UROŚNIE do celu (np. mam 0, chcę +2)
+            if(totalNetProfit >= Global_MoneySL_Value) triggerSL = true;
+         } 
+         else {
+            // Czekamy aż zysk SPADNIE do progu (np. mam +3, chcę zamknąć jak spadnie do +2)
+            if(totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
          }
-         if(triggerSL) { CloseAll(); DeleteAllPending(); ResetAllModes(); BasketStarted = false; return; }
+      }
+
+      if(triggerSL) { 
+          Print("Money SL Mode: Zamknięto przy zysku: ", totalNetProfit, " (Cel: ", Global_MoneySL_Value, ")");
+          CloseAll(); DeleteAllPending(); ResetAllModes(); BasketStarted = false; return; 
       }
    }
+}
 
    // --- 3. PIRAMIDA NET ZERO (TWOJA STARA LOGIKA) ---
    if(Global_CloseNetZero && activeMarketPositions >= 2 && totalNetProfit <= 0) {
@@ -210,34 +226,36 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       if(sparam == "BTN_NET_ZERO") {
           Global_CloseNetZero = !Global_CloseNetZero;
           
-          // POBIERAMY ZYSK W MOMENCIE KLIKNIĘCIA
-          double currentProfit = 0;
-          for(int i = OrdersTotal() - 1; i >= 0; i--) {
-             if(OrderSelect(i, SELECT_BY_POS) && OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
-                if(OrderType() <= 1) currentProfit += (OrderProfit() + OrderSwap() + OrderCommission());
-             }
+          if(Global_CloseNetZero) { // Pobieraj tylko przy AKTYWACJI
+              RefreshRates(); 
+              double currentProfit = 0;
+              for(int i = OrdersTotal() - 1; i >= 0; i--) {
+                  if(OrderSelect(i, SELECT_BY_POS) && OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
+                      if(OrderType() <= 1) currentProfit += (OrderProfit() + OrderSwap() + OrderCommission());
+                  }
+              }
+              Global_InitialProfit_NetZero = currentProfit;
+              Print("Net Zero Aktywne. Start Profit: ", Global_InitialProfit_NetZero);
           }
-          Global_InitialProfit_NetZero = currentProfit; 
           
           UpdateButton("BTN_NET_ZERO", "Pyramid Net Zero", Global_CloseNetZero);
       }
-      
-      if(sparam == "BTN_EACH_ZERO") {
-          Global_CloseEachZero = !Global_CloseEachZero;
-          UpdateButton("BTN_EACH_ZERO", "Each position Net Zero", Global_CloseEachZero);
-      }
-      
+
 // --- Logika Money SL ---
       if(sparam == "BTN_MONEY_SL") {
           Global_MoneySL_Active = !Global_MoneySL_Active;
           
-          double currentProfit = 0;
-          for(int i = OrdersTotal() - 1; i >= 0; i--) {
-             if(OrderSelect(i, SELECT_BY_POS) && OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
-                if(OrderType() <= 1) currentProfit += (OrderProfit() + OrderSwap() + OrderCommission());
-             }
+          if(Global_MoneySL_Active) { // Pobieraj tylko przy AKTYWACJI
+              RefreshRates();
+              double currentProfit = 0;
+              for(int i = OrdersTotal() - 1; i >= 0; i--) {
+                  if(OrderSelect(i, SELECT_BY_POS) && OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
+                      if(OrderType() <= 1) currentProfit += (OrderProfit() + OrderSwap() + OrderCommission());
+                  }
+              }
+              Global_InitialProfit = currentProfit;
+              Print("Money SL Aktywne. Start Profit: ", Global_InitialProfit);
           }
-          Global_InitialProfit = currentProfit; 
           
           UpdateButton("BTN_MONEY_SL", "Money SL Mode", Global_MoneySL_Active);
       }
