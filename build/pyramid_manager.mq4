@@ -39,9 +39,14 @@ void OnDeinit(const int reason) {
 //+------------------------------------------------------------------+
 void OnTick() {
    double totalNetProfit = 0;
+   double totalSLMoney = 0; // Nowa zmienna na wartość SL w USD
    int activeMarketPositions = 0;
    bool pendingToClear = false; 
    double pipsToPoints = (Digits == 3 || Digits == 5) ? Point * 10 : Point;
+
+   // Parametry do obliczeń pieniężnych SL
+   double tickVal = MarketInfo(_Symbol, MODE_TICKVALUE);
+   double tickSz  = MarketInfo(_Symbol, MODE_TICKSIZE);
 
    // --- 1. SKANOWANIE POZYCJI ---
    for(int i = OrdersTotal() - 1; i >= 0; i--) {
@@ -49,9 +54,16 @@ void OnTick() {
          if(OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
             int type = OrderType();
             if(type == OP_BUY || type == OP_SELL) {
+               // Obliczanie zysku netto
                double profit = OrderProfit() + OrderSwap() + OrderCommission();
                totalNetProfit += profit;
                activeMarketPositions++;
+
+               // Obliczanie wartości SL w USD (jeśli ustawiony)
+               if(OrderStopLoss() > 0 && tickVal > 0 && tickSz > 0) {
+                  double slDist = (type == OP_BUY) ? (OrderStopLoss() - OrderOpenPrice()) : (OrderOpenPrice() - OrderStopLoss());
+                  totalSLMoney += (slDist / tickSz) * tickVal * OrderLots();
+               }
 
                if(Global_CloseEachZero) {
                   double openPrice = OrderOpenPrice();
@@ -70,61 +82,74 @@ void OnTick() {
       }
    }
 
-   // --- WYŚWIETLANIE ZYSKU LIVE ---
-   double equity = AccountEquity();
-   string profitText = "Net: " + DoubleToString(totalNetProfit, 2) + " USD (" + DoubleToString((equity > 0 ? (totalNetProfit / equity) * 100.0 : 0), 2) + "%)";
-   if(ObjectFind(0, "LBL_LIVE_PROFIT") < 0) {
-       ObjectCreate(0, "LBL_LIVE_PROFIT", OBJ_LABEL, 0, 0, 0);
-       ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
-       ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_XDISTANCE, 180);
-       ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_YDISTANCE, 10);
-   }
-   ObjectSetString(0, "LBL_LIVE_PROFIT", OBJPROP_TEXT, profitText);
-   ObjectSetInteger(0, "LBL_LIVE_PROFIT", OBJPROP_COLOR, (totalNetProfit >= 0 ? clrLime : clrRed));
+// --- WYŚWIETLANIE ZINTEGROWANE (WERSJA PANCERNA - ANCHOR RIGHT) ---
+   double balance = AccountBalance();
+   double profitPct = (balance > 0) ? (totalNetProfit / balance) * 100.0 : 0;
+   double slPct     = (balance > 0) ? (totalSLMoney / balance) * 100.0 : 0;
 
-  // --- 2. LOGIKA MONEY STOP LOSS (Zaktualizowana) ---
-static bool BasketStarted = false; 
-if(Global_MoneySL_Active) {
-   if(activeMarketPositions > 0) BasketStarted = true;
-   if(activeMarketPositions == 0 && BasketStarted) {
-       DeleteAllPending(); ResetAllModes(); BasketStarted = false; return;
+   // Budujemy jeden ciąg
+   string fullText = "Total SL: " + DoubleToString(totalSLMoney, 2) + " USD (" + DoubleToString(slPct, 2) + "%)" +
+                     "  |  " + 
+                     "Net: " + DoubleToString(totalNetProfit, 2) + " USD (" + DoubleToString(profitPct, 2) + "%)";
+
+   if(ObjectFind(0, "LBL_DASHBOARD") < 0) {
+       ObjectCreate(0, "LBL_DASHBOARD", OBJ_LABEL, 0, 0, 0);
+       ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+       // KLUCZOWA POPRAWKA: Kotwiczymy do prawej, żeby tekst rósł w LEWO
+       ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_ANCHOR, ANCHOR_RIGHT); 
+       ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_YDISTANCE, 10);
    }
-   
-   if(activeMarketPositions > 0) {
-      // Optymalizacja komunikatów do serwera (co 2 sekundy)
-      static uint lastMilliTime = 0;
-      if(GetTickCount() - lastMilliTime > 2000) { 
-          RefreshGlobalSL(); 
-          lastMilliTime = GetTickCount(); 
+
+   // Teraz X=180 to odległość PRAWEGO końca napisu od krawędzi
+   ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_XDISTANCE, 180);
+   ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_FONTSIZE, 10);
+   ObjectSetString(0, "LBL_DASHBOARD", OBJPROP_TEXT, fullText);
+
+   color dashboardColor = (totalNetProfit >= 0) ? clrLime : clrRed;
+   ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_COLOR, dashboardColor);
+
+   // Czyścimy stare śmieci, jeśli zostały
+   ObjectDelete(0, "LBL_LIVE_PROFIT");
+   ObjectDelete(0, "LBL_LIVE_SL_TOTAL");
+
+   // --- 2. LOGIKA MONEY STOP LOSS ---
+   static bool BasketStarted = false; 
+   if(Global_MoneySL_Active) {
+      if(activeMarketPositions > 0) BasketStarted = true;
+      if(activeMarketPositions == 0 && BasketStarted) {
+        DeleteAllPending(); ResetAllModes(); BasketStarted = false; return;
       }
+   
+      if(activeMarketPositions > 0) {
+         static uint lastMilliTime = 0;
+         if(GetTickCount() - lastMilliTime > 2000) { 
+             RefreshGlobalSL(); 
+             lastMilliTime = GetTickCount(); 
+         }
 
-      Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
-      bool triggerSL = false;
+         Global_MoneySL_Value = StringToDouble(ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT));
+         bool triggerSL = false;
 
-      if(Global_MoneySL_Value < 0) {
-         // Tryb Stop Loss (Strata)
-         if(totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
-      } 
-      else if(Global_MoneySL_Value > 0) {
-         // INTELIGENTNA LOGIKA: Cel (Target) vs Obrona (Trailing)
-         if(Global_InitialProfit < Global_MoneySL_Value) {
-            // Czekamy aż zysk UROŚNIE do celu (np. mam 0, chcę +2)
-            if(totalNetProfit >= Global_MoneySL_Value) triggerSL = true;
-         } 
-         else {
-            // Czekamy aż zysk SPADNIE do progu (np. mam +3, chcę zamknąć jak spadnie do +2)
+         if(Global_MoneySL_Value < 0) {
             if(totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
+         } 
+         else if(Global_MoneySL_Value > 0) {
+            if(Global_InitialProfit < Global_MoneySL_Value) {
+               if(totalNetProfit >= Global_MoneySL_Value) triggerSL = true;
+            } 
+            else {
+               if(totalNetProfit <= Global_MoneySL_Value) triggerSL = true;
+            }
+         }
+
+         if(triggerSL) { 
+             Print("Money SL Mode: Zamknięto przy zysku: ", totalNetProfit, " (Cel: ", Global_MoneySL_Value, ")");
+             CloseAll(); DeleteAllPending(); ResetAllModes(); BasketStarted = false; return; 
          }
       }
-
-      if(triggerSL) { 
-          Print("Money SL Mode: Zamknięto przy zysku: ", totalNetProfit, " (Cel: ", Global_MoneySL_Value, ")");
-          CloseAll(); DeleteAllPending(); ResetAllModes(); BasketStarted = false; return; 
-      }
    }
-}
 
-   // --- 3. PIRAMIDA NET ZERO (TWOJA STARA LOGIKA) ---
+   // --- 3. PIRAMIDA NET ZERO ---
    if(Global_CloseNetZero && activeMarketPositions >= 2 && totalNetProfit <= 0) {
       Print("Pyramid Net Zero: Hard Kill przy zysku <= 0.");
       CloseAll(); 
