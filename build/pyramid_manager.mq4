@@ -576,3 +576,19 @@ void HideGridSubPanel() {
    
    ChartRedraw();
 }
+
+void DeleteAllPending() {
+   for(int i = OrdersTotal() - 1; i >= 0; i--) {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
+         if(OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
+            // Typy > 1 to: BUY_LIMIT, SELL_LIMIT, BUY_STOP, SELL_STOP
+            if(OrderType() > 1) {
+               if(!OrderDelete(OrderTicket())) {
+                  Print("Blad usuwania zlecenia #", OrderTicket(), " Kod: ", GetLastError());
+               }
+            }
+         }
+      }
+   }
+   Print("Wszystkie zlecenia oczekujace zostaly usuniete.");
+}
