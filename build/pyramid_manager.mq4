@@ -355,13 +355,7 @@ void ResetAllModes() {
 }
 void CreateGUI() {
    CreateButton("BTN_NET_ZERO", 180, 30, "Pyramid Net Zero", Global_CloseNetZero);
-<<<<<<< HEAD
-   //CreateButton("BTN_EACH_ZERO", 180, 70, "Each position Net Zero", Global_CloseEachZero);
    CreateButton("BTN_MONEY_SL", 180, 60, "Money SL Mode", Global_MoneySL_Active);
-   CreateButton("BTN_GRID_TOGGLE", 180, 195, "SET GRID", false);
-=======
-   CreateButton("BTN_MONEY_SL", 180, 60, "Money SL Mode", Global_MoneySL_Active);
->>>>>>> feature/ManualDeletePending
    
    if(ObjectFind(0, "EDT_MONEY_VAL") < 0) {
       ObjectCreate(0, "EDT_MONEY_VAL", OBJ_EDIT, 0, 0, 0);
@@ -377,10 +371,7 @@ void CreateGUI() {
 
    CreateButton("BTN_REMOVE_SL", 180, 125, "REMOVE ALL SL", false);
    ObjectSetInteger(0, "BTN_REMOVE_SL", OBJPROP_BGCOLOR, clrDarkOrange);
-<<<<<<< HEAD
-=======
    
->>>>>>> feature/ManualDeletePending
    CreateButton("BTN_PANIC", 180, 160, "CLOSE ALL", false); 
    ObjectSetInteger(0, "BTN_PANIC", OBJPROP_BGCOLOR, clrRed);
 
@@ -458,11 +449,7 @@ void CreateGridSubPanel() {
    else if(Digits == 3 || Digits == 5) defaultStep = "10.0";
 
    // 1. Wybór kierunku - Y startuje od 315 (pod SET GRID)
-<<<<<<< HEAD
-   CreateButton("BTN_GRID_TYPE", xStart, 235, (Global_Grid_Direction==0?"MODE: BUY STOP":"MODE: SELL STOP"), true);
-=======
    CreateButton("BTN_GRID_TYPE", xStart, 265, (Global_Grid_Direction==0?"MODE: BUY STOP":"MODE: SELL STOP"), true);
->>>>>>> feature/ManualDeletePending
    color dirColor = (Global_Grid_Direction == 0) ? clrDodgerBlue : clrRed;
    ObjectSetInteger(0, "BTN_GRID_TYPE", OBJPROP_BGCOLOR, dirColor);
 
@@ -470,21 +457,13 @@ void CreateGridSubPanel() {
    ObjectCreate(0, "LBL_GRID_LOTS", OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_XDISTANCE, xStart);
-<<<<<<< HEAD
-   ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_YDISTANCE, 265);
-=======
    ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_YDISTANCE, 300);
->>>>>>> feature/ManualDeletePending
    ObjectSetString(0, "LBL_GRID_LOTS", OBJPROP_TEXT, "Lot Size:");
 
    ObjectCreate(0, "EDT_GRID_LOTS", OBJ_EDIT, 0, 0, 0);
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_XDISTANCE, xStart);
-<<<<<<< HEAD
-   ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_YDISTANCE, 285);
-=======
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_YDISTANCE, 320);
->>>>>>> feature/ManualDeletePending
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_XSIZE, 140); // Pełna szerokość panelu
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_YSIZE, 25);
    ObjectSetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT, Last_Grid_Lot); 
@@ -493,21 +472,13 @@ void CreateGridSubPanel() {
    ObjectCreate(0, "LBL_GRID_STEP", OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_XDISTANCE, xStart);
-<<<<<<< HEAD
-   ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_YDISTANCE, 320);
-=======
    ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_YDISTANCE, 355);
->>>>>>> feature/ManualDeletePending
    ObjectSetString(0, "LBL_GRID_STEP", OBJPROP_TEXT, "Step:");
 
    ObjectCreate(0, "EDT_GRID_STEP", OBJ_EDIT, 0, 0, 0);
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_XDISTANCE, xStart);
-<<<<<<< HEAD
-   ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_YDISTANCE, 335);
-=======
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_YDISTANCE, 370);
->>>>>>> feature/ManualDeletePending
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_XSIZE, 65);
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_YSIZE, 25);
 
@@ -518,23 +489,19 @@ void CreateGridSubPanel() {
    ObjectCreate(0, "LBL_GRID_COUNT", OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_XDISTANCE, col2_x);
-   ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_YDISTANCE, 320);
+   ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_YDISTANCE, 355);
    ObjectSetString(0, "LBL_GRID_COUNT", OBJPROP_TEXT, "Count:");
 
    ObjectCreate(0, "EDT_GRID_COUNT", OBJ_EDIT, 0, 0, 0);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_XDISTANCE, col2_x);
-   ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YDISTANCE, 335);
+   ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YDISTANCE, 370);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_XSIZE, 65);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YSIZE, 25);
    ObjectSetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT, Last_Grid_Count);
 
    // 5. Przycisk START (Nazwa BTN_GRID_EXEC - musi się zgadzać z OnChartEvent)
-<<<<<<< HEAD
-   CreateButton("BTN_GRID_EXEC", xStart, 370, "START GRID", false);
-=======
    CreateButton("BTN_GRID_EXEC", xStart, 405, "START GRID", false);
->>>>>>> feature/ManualDeletePending
    ObjectSetInteger(0, "BTN_GRID_EXEC", OBJPROP_BGCOLOR, clrGreen);
    ObjectSetInteger(0, "BTN_GRID_EXEC", OBJPROP_XSIZE, 140); 
 }
@@ -614,31 +581,12 @@ void ExecuteGrid() {
 
 
 void HideGridSubPanel() {
-<<<<<<< HEAD
-
-   // ZAPISZ WARTOSCI PRZED USUNIECIEM OBIEKTOW
-   Last_Grid_Lot = ObjectGetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT);
-   Last_Grid_Step = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT);
-   Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
-   
-   if(ObjectFind(0, "EDT_GRID_STEP") >= 0) {
-      Last_Grid_Step = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT); // Zapisz zanim usuniesz
-   }
-   
-   // Zapisz wartość wpisaną przez Ciebie do zmiennej "pamięci"
-   if(ObjectFind(0, "EDT_GRID_COUNT") >= 0) {
-      Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
-   }
-   
-   // Usuwamy przyciski i pola edycyjne
-=======
    // 1. Zapisz wszystko jednym ciągiem
    if(ObjectFind(0, "EDT_GRID_LOTS") >= 0)  Last_Grid_Lot = ObjectGetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT);
    if(ObjectFind(0, "EDT_GRID_STEP") >= 0)  Last_Grid_Step = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT);
    if(ObjectFind(0, "EDT_GRID_COUNT") >= 0) Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
    
    // 2. Usuwamy obiekty
->>>>>>> feature/ManualDeletePending
    ObjectDelete(0, "BTN_GRID_TYPE");
    ObjectDelete(0, "BTN_GRID_EXEC");
    ObjectDelete(0, "EDT_GRID_LOTS");
