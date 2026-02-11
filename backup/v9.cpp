@@ -22,7 +22,6 @@ double Global_InitialProfit_NetZero = 0; // Dla Pyramid Net Zero (TEGO BRAKOWAŁ
 string Last_Grid_Lot = "0.01";
 string Last_Grid_Step = ""; // Puste, aby przy pierwszym uruchomieniu zadzialala logika symbolu
 string Last_Grid_Count = "5";
-string Last_MoneySL_Value = "-10.00"; // Domyślna wartość
 
 
 //+------------------------------------------------------------------+
@@ -35,30 +34,14 @@ int OnInit() {
 }
 
 void OnDeinit(const int reason) {
-   // ZAPAMIĘTYWANIE WARTOŚCI PRZED USUNIĘCIEM
-   if(ObjectFind(0, "EDT_GRID_LOTS") >= 0)  Last_Grid_Lot   = ObjectGetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT);
-   if(ObjectFind(0, "EDT_GRID_STEP") >= 0)  Last_Grid_Step  = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT);
-   if(ObjectFind(0, "EDT_GRID_COUNT") >= 0) Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
-   
-   if(ObjectFind(0, "EDT_MONEY_VAL") >= 0) Last_MoneySL_Value = ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT);
-   
-   // USUWANIE OBIEKTÓW
-   ObjectsDeleteAll(0, "BTN_");
-   ObjectsDeleteAll(0, "LBL_GRID_");
+   ObjectsDeleteAll(0, "BTN_"); 
    ObjectDelete(0, "EDT_MONEY_VAL");
-   ObjectDelete(0, "EDT_GRID_LOTS");
-   ObjectDelete(0, "EDT_GRID_STEP");
-   ObjectDelete(0, "EDT_GRID_COUNT");
-   ObjectDelete(0, "LBL_DASHBOARD");
-   
-   ChartRedraw();
 }
 
 //+------------------------------------------------------------------+
 //| Główna pętla programu                                            |
 //+------------------------------------------------------------------+
 void OnTick() {
-   double totalTPMoney = 0;
    double totalNetProfit = 0;
    double totalSLMoney = 0; // Nowa zmienna na wartość SL w USD
    int activeMarketPositions = 0;
@@ -85,13 +68,6 @@ void OnTick() {
                   double slDist = (type == OP_BUY) ? (OrderStopLoss() - OrderOpenPrice()) : (OrderOpenPrice() - OrderStopLoss());
                   totalSLMoney += (slDist / tickSz) * tickVal * OrderLots();
                }
-               
-               // --- NOWY BLOK: OBLICZANIE WARTOŚCI TP W USD ---
-               if(OrderTakeProfit() > 0 && tickVal > 0 && tickSz > 0) {
-                  double tpDist = (type == OP_BUY) ? (OrderTakeProfit() - OrderOpenPrice()) : (OrderOpenPrice() - OrderTakeProfit());
-                  totalTPMoney += (tpDist / tickSz) * tickVal * OrderLots();
-               }
-               // -----------------------------------------------
 
                if(Global_CloseEachZero) {
                   double openPrice = OrderOpenPrice();
@@ -110,25 +86,26 @@ void OnTick() {
       }
    }
 
-// --- WYŚWIETLANIE ZINTEGROWANE (WERSJA SKRÓCONA) ---
+// --- WYŚWIETLANIE ZINTEGROWANE (WERSJA PANCERNA - ANCHOR RIGHT) ---
    double balance = AccountBalance();
    double profitPct = (balance > 0) ? (totalNetProfit / balance) * 100.0 : 0;
    double slPct     = (balance > 0) ? (totalSLMoney / balance) * 100.0 : 0;
-   double tpPct     = (balance > 0) ? (totalTPMoney / balance) * 100.0 : 0;
 
-   string fullText = "TP: " + DoubleToString(totalTPMoney, 2) + " (" + DoubleToString(tpPct, 2) + "%) | " +
-                     "SL: " + DoubleToString(totalSLMoney, 2) + " (" + DoubleToString(slPct, 2) + "%) | " +
-                     "Net: " + DoubleToString(totalNetProfit, 2) + " (" + DoubleToString(profitPct, 2) + "%)";
+   // Budujemy jeden ciąg
+   string fullText = "Total SL: " + DoubleToString(totalSLMoney, 2) + " USD (" + DoubleToString(slPct, 2) + "%)" +
+                     "  |  " + 
+                     "Net: " + DoubleToString(totalNetProfit, 2) + " USD (" + DoubleToString(profitPct, 2) + "%)";
 
    if(ObjectFind(0, "LBL_DASHBOARD") < 0) {
        ObjectCreate(0, "LBL_DASHBOARD", OBJ_LABEL, 0, 0, 0);
        ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
+       // KLUCZOWA POPRAWKA: Kotwiczymy do prawej, żeby tekst rósł w LEWO
        ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_ANCHOR, ANCHOR_RIGHT); 
        ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_YDISTANCE, 10);
    }
 
-   // 450 pikseli od prawej krawędzi da miejsce na ten długi napis
-   ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_XDISTANCE, 220); 
+   // Teraz X=180 to odległość PRAWEGO końca napisu od krawędzi
+   ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_XDISTANCE, 180);
    ObjectSetInteger(0, "LBL_DASHBOARD", OBJPROP_FONTSIZE, 10);
    ObjectSetString(0, "LBL_DASHBOARD", OBJPROP_TEXT, fullText);
 
@@ -366,17 +343,6 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       // Krytyczne dla odświeżenia grafiki po usunięciu obiektów
       ChartRedraw();
    }
-   
-   // --- 2. NOWY BLOK: Obsługa edycji pól (WKLEJ TO TUTAJ) ---
-   if(id == CHARTEVENT_OBJECT_ENDEDIT) {
-      if(sparam == "EDT_GRID_LOTS")  Last_Grid_Lot   = ObjectGetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT);
-      if(sparam == "EDT_GRID_STEP")  Last_Grid_Step  = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT);
-      if(sparam == "EDT_GRID_COUNT") Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
-      if(sparam == "EDT_MONEY_VAL")  Last_MoneySL_Value = ObjectGetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT);
-      
-      Print("Zapisano zmiany: Lot=", Last_Grid_Lot, " Step=", Last_Grid_Step, " Count=", Last_Grid_Count);
-   }
-   
 }
 
 void ResetAllModes() {
@@ -398,7 +364,7 @@ void CreateGUI() {
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_YDISTANCE, 90); 
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_XSIZE, 140);
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_YSIZE, 20);
-      ObjectSetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT, Last_MoneySL_Value);
+      ObjectSetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT, "-10.00");
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_ALIGN, ALIGN_CENTER);
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_BGCOLOR, clrWhite);
    }
@@ -414,10 +380,6 @@ void CreateGUI() {
    ObjectSetInteger(0, "BTN_DEL_PENDING", OBJPROP_BGCOLOR, clrMediumSlateBlue);
 
    CreateButton("BTN_GRID_TOGGLE", 180, 230, "SET GRID", false); // Y = 230 (Zjechał niżej o 35)
-   
-   if(Global_GridPanel_Open) {
-      CreateGridSubPanel();
-   }
 }
 
 void CreateButton(string name, int x, int y, string text, bool state) {
