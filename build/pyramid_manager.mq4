@@ -18,6 +18,10 @@ bool Global_GridPanel_Open = false;
 int  Global_Grid_Direction = 0; // 0-BuyStop, 1-SellStop
 double Global_InitialProfit = 0; // Tu bot zapamięta zysk z chwili kliknięcia
 double Global_InitialProfit_NetZero = 0; // Dla Pyramid Net Zero (TEGO BRAKOWAŁO)
+// --- Pamiec ustawien Grid
+string Last_Grid_Lot = "0.01";
+string Last_Grid_Step = ""; // Puste, aby przy pierwszym uruchomieniu zadzialala logika symbolu
+string Last_Grid_Count = "5";
 
 
 //+------------------------------------------------------------------+
@@ -337,31 +341,31 @@ void ResetAllModes() {
     Global_CloseEachZero = false;
     Global_MoneySL_Active = false;
     UpdateButton("BTN_NET_ZERO", "Pyramid Net Zero", false);
-    UpdateButton("BTN_EACH_ZERO", "Each position Net Zero", false);
+    //UpdateButton("BTN_EACH_ZERO", "Each position Net Zero", false);
     UpdateButton("BTN_MONEY_SL", "Money SL Mode", false);
 }
 
 void CreateGUI() {
    CreateButton("BTN_NET_ZERO", 180, 30, "Pyramid Net Zero", Global_CloseNetZero);
-   CreateButton("BTN_EACH_ZERO", 180, 70, "Each position Net Zero", Global_CloseEachZero);
-   CreateButton("BTN_MONEY_SL", 180, 110, "Money SL Mode", Global_MoneySL_Active);
-   CreateButton("BTN_GRID_TOGGLE", 180, 275, "SET GRID", false);
+   //CreateButton("BTN_EACH_ZERO", 180, 70, "Each position Net Zero", Global_CloseEachZero);
+   CreateButton("BTN_MONEY_SL", 180, 60, "Money SL Mode", Global_MoneySL_Active);
+   CreateButton("BTN_GRID_TOGGLE", 180, 195, "SET GRID", false);
    
    if(ObjectFind(0, "EDT_MONEY_VAL") < 0) {
       ObjectCreate(0, "EDT_MONEY_VAL", OBJ_EDIT, 0, 0, 0);
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_XDISTANCE, 180);
-      ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_YDISTANCE, 148); 
-      ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_XSIZE, 170);
-      ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_YSIZE, 25);
+      ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_YDISTANCE, 90); 
+      ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_XSIZE, 140);
+      ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_YSIZE, 20);
       ObjectSetString(0, "EDT_MONEY_VAL", OBJPROP_TEXT, "-10.00");
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_ALIGN, ALIGN_CENTER);
       ObjectSetInteger(0, "EDT_MONEY_VAL", OBJPROP_BGCOLOR, clrWhite);
    }
 
-   CreateButton("BTN_REMOVE_SL", 180, 185, "REMOVE ALL SL", false);
+   CreateButton("BTN_REMOVE_SL", 180, 125, "REMOVE ALL SL", false);
    ObjectSetInteger(0, "BTN_REMOVE_SL", OBJPROP_BGCOLOR, clrDarkOrange);
-   CreateButton("BTN_PANIC", 180, 230, "CLOSE ALL", false); 
+   CreateButton("BTN_PANIC", 180, 160, "CLOSE ALL", false); 
    ObjectSetInteger(0, "BTN_PANIC", OBJPROP_BGCOLOR, clrRed);
 }
 
@@ -370,8 +374,8 @@ void CreateButton(string name, int x, int y, string text, bool state) {
    ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
    ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_XSIZE, 170);
-   ObjectSetInteger(0, name, OBJPROP_YSIZE, 35);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, 140);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, 25);
    ObjectSetString(0, name, OBJPROP_TEXT, text);
    ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 9);
    UpdateButton(name, text, state);
@@ -420,7 +424,7 @@ void DeleteAllPending() {
 void CreateGridSubPanel() {
    // Ustawiamy xStart na 180, żeby było w tej samej linii co główne przyciski
    int xStart = 180; 
-   int col2_x = xStart - 90; // Druga kolumna dla Count (obok Step)
+   int col2_x = xStart - 75; // Druga kolumna dla Count (obok Step)
 
    // --- LOGIKA AUTOMATYCZNEGO DOBORU WARTOŚCI ---
    string sym = _Symbol;
@@ -432,7 +436,7 @@ void CreateGridSubPanel() {
    else if(Digits == 3 || Digits == 5) defaultStep = "10.0";
 
    // 1. Wybór kierunku - Y startuje od 315 (pod SET GRID)
-   CreateButton("BTN_GRID_TYPE", xStart, 315, (Global_Grid_Direction==0?"MODE: BUY STOP":"MODE: SELL STOP"), true);
+   CreateButton("BTN_GRID_TYPE", xStart, 235, (Global_Grid_Direction==0?"MODE: BUY STOP":"MODE: SELL STOP"), true);
    color dirColor = (Global_Grid_Direction == 0) ? clrDodgerBlue : clrRed;
    ObjectSetInteger(0, "BTN_GRID_TYPE", OBJPROP_BGCOLOR, dirColor);
 
@@ -440,51 +444,53 @@ void CreateGridSubPanel() {
    ObjectCreate(0, "LBL_GRID_LOTS", OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_XDISTANCE, xStart);
-   ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_YDISTANCE, 355);
+   ObjectSetInteger(0, "LBL_GRID_LOTS", OBJPROP_YDISTANCE, 265);
    ObjectSetString(0, "LBL_GRID_LOTS", OBJPROP_TEXT, "Lot Size:");
 
    ObjectCreate(0, "EDT_GRID_LOTS", OBJ_EDIT, 0, 0, 0);
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_XDISTANCE, xStart);
-   ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_YDISTANCE, 370);
-   ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_XSIZE, 170); // Pełna szerokość panelu
+   ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_YDISTANCE, 285);
+   ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_XSIZE, 140); // Pełna szerokość panelu
    ObjectSetInteger(0, "EDT_GRID_LOTS", OBJPROP_YSIZE, 25);
-   ObjectSetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT, "0.01"); 
+   ObjectSetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT, Last_Grid_Lot); 
 
    // 3. Pole: Step
    ObjectCreate(0, "LBL_GRID_STEP", OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_XDISTANCE, xStart);
-   ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_YDISTANCE, 405);
+   ObjectSetInteger(0, "LBL_GRID_STEP", OBJPROP_YDISTANCE, 320);
    ObjectSetString(0, "LBL_GRID_STEP", OBJPROP_TEXT, "Step:");
 
    ObjectCreate(0, "EDT_GRID_STEP", OBJ_EDIT, 0, 0, 0);
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_XDISTANCE, xStart);
-   ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_YDISTANCE, 420);
-   ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_XSIZE, 80);
+   ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_YDISTANCE, 335);
+   ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_XSIZE, 65);
    ObjectSetInteger(0, "EDT_GRID_STEP", OBJPROP_YSIZE, 25);
-   ObjectSetString(0, "EDT_GRID_STEP", OBJPROP_TEXT, defaultStep);
+
+   string stepToShow = (Last_Grid_Step == "") ? defaultStep : Last_Grid_Step; // Sprawdz czy mamy cos w pamieci
+   ObjectSetString(0, "EDT_GRID_STEP", OBJPROP_TEXT, stepToShow);
 
    // 4. Pole: Count (Ustawione domyślnie na 5)
    ObjectCreate(0, "LBL_GRID_COUNT", OBJ_LABEL, 0, 0, 0);
    ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_XDISTANCE, col2_x);
-   ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_YDISTANCE, 405);
+   ObjectSetInteger(0, "LBL_GRID_COUNT", OBJPROP_YDISTANCE, 320);
    ObjectSetString(0, "LBL_GRID_COUNT", OBJPROP_TEXT, "Count:");
 
    ObjectCreate(0, "EDT_GRID_COUNT", OBJ_EDIT, 0, 0, 0);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_CORNER, CORNER_RIGHT_UPPER);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_XDISTANCE, col2_x);
-   ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YDISTANCE, 420);
-   ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_XSIZE, 80);
+   ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YDISTANCE, 335);
+   ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_XSIZE, 65);
    ObjectSetInteger(0, "EDT_GRID_COUNT", OBJPROP_YSIZE, 25);
-   ObjectSetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT, "5"); 
+   ObjectSetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT, Last_Grid_Count);
 
    // 5. Przycisk START (Nazwa BTN_GRID_EXEC - musi się zgadzać z OnChartEvent)
-   CreateButton("BTN_GRID_EXEC", xStart, 460, "START GRID", false);
+   CreateButton("BTN_GRID_EXEC", xStart, 370, "START GRID", false);
    ObjectSetInteger(0, "BTN_GRID_EXEC", OBJPROP_BGCOLOR, clrGreen);
-   ObjectSetInteger(0, "BTN_GRID_EXEC", OBJPROP_XSIZE, 170); 
+   ObjectSetInteger(0, "BTN_GRID_EXEC", OBJPROP_XSIZE, 140); 
 }
 
 void RemoveGridSubPanel() {
@@ -562,6 +568,21 @@ void ExecuteGrid() {
 
 
 void HideGridSubPanel() {
+
+   // ZAPISZ WARTOSCI PRZED USUNIECIEM OBIEKTOW
+   Last_Grid_Lot = ObjectGetString(0, "EDT_GRID_LOTS", OBJPROP_TEXT);
+   Last_Grid_Step = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT);
+   Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
+   
+   if(ObjectFind(0, "EDT_GRID_STEP") >= 0) {
+      Last_Grid_Step = ObjectGetString(0, "EDT_GRID_STEP", OBJPROP_TEXT); // Zapisz zanim usuniesz
+   }
+   
+   // Zapisz wartość wpisaną przez Ciebie do zmiennej "pamięci"
+   if(ObjectFind(0, "EDT_GRID_COUNT") >= 0) {
+      Last_Grid_Count = ObjectGetString(0, "EDT_GRID_COUNT", OBJPROP_TEXT);
+   }
+   
    // Usuwamy przyciski i pola edycyjne
    ObjectDelete(0, "BTN_GRID_TYPE");
    ObjectDelete(0, "BTN_GRID_EXEC");
