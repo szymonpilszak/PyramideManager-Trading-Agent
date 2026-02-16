@@ -61,7 +61,6 @@ void OnTick() {
    double totalTPMoney = 0;
    double totalNetProfit = 0;
    double totalSLMoney = 0; // Nowa zmienna na wartość SL w USD
-   double totalPendingTP = 0; // Dodaj to na początku OnTick
    int activeMarketPositions = 0;
    bool pendingToClear = false; 
    double pipsToPoints = (Digits == 3 || Digits == 5) ? Point * 10 : Point;
@@ -75,32 +74,6 @@ void OnTick() {
       if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
          if(OrderSymbol() == _Symbol && (MagicNumber == 0 || OrderMagicNumber() == MagicNumber)) {
             int type = OrderType();
-            
-            
-             // --- LICZENIE TP DLA WSZYSTKICH (Market + Pending) ---
-
-            if(OrderTakeProfit() > 0 && tickVal > 0 && tickSz > 0) {
-
-               double tpDist = (type == OP_BUY || type == OP_BUYSTOP || type == OP_BUYLIMIT) 
-
-                            ? (OrderTakeProfit() - OrderOpenPrice()) 
-
-                            : (OrderOpenPrice() - OrderTakeProfit());
-
-               
-
-               double orderTPValue = (tpDist / tickSz) * tickVal * OrderLots();
-
-               totalTPMoney += orderTPValue;
-
-
-
-               // Jeśli to zlecenie oczekujące, doliczamy do sumy Pending
-
-               if(type > 1) totalPendingTP += orderTPValue;
-
-            }
-            
             if(type == OP_BUY || type == OP_SELL) {
                // Obliczanie zysku netto
                double profit = OrderProfit() + OrderSwap() + OrderCommission();
@@ -113,7 +86,11 @@ void OnTick() {
                   totalSLMoney += (slDist / tickSz) * tickVal * OrderLots();
                }
                
-               
+               // --- NOWY BLOK: OBLICZANIE WARTOŚCI TP W USD ---
+               if(OrderTakeProfit() > 0 && tickVal > 0 && tickSz > 0) {
+                  double tpDist = (type == OP_BUY) ? (OrderTakeProfit() - OrderOpenPrice()) : (OrderOpenPrice() - OrderTakeProfit());
+                  totalTPMoney += (tpDist / tickSz) * tickVal * OrderLots();
+               }
                // -----------------------------------------------
 
                if(Global_CloseEachZero) {
